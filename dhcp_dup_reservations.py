@@ -2,11 +2,12 @@
 
 import json
 import requests
-import os
+import logging
 
-from urllib.request import Request, urlopen
 from sys            import argv, stderr
 
+# Send SSL cn deprecation warnings to syslog
+logging.captureWarnings(True)
 
 def pp_json(data):
     pretty_json = json.dumps(data, sort_keys=True, indent=2, separators=(",", ": "))
@@ -19,15 +20,6 @@ def key_by(data, key):
         keyed_data[a_dict[key]] = a_dict
 
     return keyed_data
-
-# Thanks to Dave and Raj: http://stackoverflow.com/a/6312600/5347993
-class RequestWithMethod(Request):
-  def __init__(self, *args, **kwargs):
-    self._method = kwargs.pop('method', None)
-    Request.__init__(self, *args, **kwargs)
-
-  def get_method(self):
-    return self._method if self._method else super(RequestWithMethod, self).get_method()
 
 protocol = "https"
 
@@ -128,14 +120,7 @@ for ip, detail_lease in add_lease_on_secondary.items():
 
         post_data += "{0}={1}".format(k, v)
 
-#    post_request = RequestWithMethod(secondary_lease_url,
-#                                     data=post_data.encode("utf8"),
-#                                     method="POST")
-
     # Add the lease
-#    with urlopen(post_request) as lease_post_socket:
-#        post_response = lease_post_socket.read().decode("utf8")
-
     post_response = requests.post(secondary_lease_url, data=post_data, verify=ca_path, cert=(cert_path, key_path))
 
     # Notify about addition
