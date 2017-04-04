@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import json
+import requests
+import os
 
 from urllib.request import Request, urlopen
 from sys            import argv, stderr
@@ -18,7 +20,6 @@ def key_by(data, key):
 
     return keyed_data
 
-
 # Thanks to Dave and Raj: http://stackoverflow.com/a/6312600/5347993
 class RequestWithMethod(Request):
   def __init__(self, *args, **kwargs):
@@ -28,12 +29,10 @@ class RequestWithMethod(Request):
   def get_method(self):
     return self._method if self._method else super(RequestWithMethod, self).get_method()
 
-
-# TODO: Support HTTPS
-protocol = "http"
+protocol = "https"
 
 # Template for dhcp API base URLs
-base_url_template  = "{0}://{1}/dhcp/{2}"
+base_url_template  = "{0}://{1}:8443/dhcp/{2}"
 lease_url_template = "{0}/{1}"
 
 # "Parse" arguments
@@ -41,20 +40,21 @@ dhcp_primary   = argv[1]
 dhcp_secondary = argv[2]
 subnet         = argv[3]
 
+# SSL paths
+ca_path   = "/var/lib/puppet/ssl/certs/ca.pem"
+cert_path = "/var/lib/puppet/ssl/certs/" + dhcp_primary + ".pem"
+key_path  = "/var/lib/puppet/ssl/private_keys/" + dhcp_primary + ".pem"
+
 # Get the base urls
 dhcp_primary_base_url   = base_url_template.format(protocol, dhcp_primary,   subnet)
 dhcp_secondary_base_url = base_url_template.format(protocol, dhcp_secondary, subnet)
 
-# Fetch the current records
-with urlopen(dhcp_primary_base_url)   as primary_records_socket:
-    primary_records_json   = primary_records_socket.read().decode("utf8")
-
-with urlopen(dhcp_secondary_base_url) as secondary_records_socket:
-    secondary_records_json = secondary_records_socket.read().decode("utf8")
+primary_records_resp = requests.get(dhcp_primary_base_url, verify=ca_path, cert=(cert_path, key_path))
+secondary_records_resp = requests.get(dhcp_secondary_base_url, verify=ca_path, cert=(cert_path, key_path))
 
 # Parse the JSON
-primary_records   = json.loads(primary_records_json)
-secondary_records = json.loads(secondary_records_json)
+primary_records   = json.loads(primary_records_resp.text)
+secondary_records = json.loads(secondary_records_resp.text)
 
 # We just care about the reservations
 primary_reservations   = primary_records[  "reservations"]
@@ -77,20 +77,17 @@ for ip, lease in keyed_primary_reservations.items():
     primary_lease_url   = lease_url_template.format(dhcp_primary_base_url, ip)
     secondary_lease_url = lease_url_template.format(dhcp_primary_base_url, ip)
 
-    # Obtain detail about reservation from primary
-    with urlopen(primary_lease_url) as primary_lease_socket:
-        primary_detail_lease_json = primary_lease_socket.read().decode("utf8")
+    primary_detail_lease_resp = requests.get(primary_lease_url, verify=ca_path, cert=(cert_path, key_path))
 
     # Parse the detailed lease
-    primary_detail_lease = json.loads(primary_detail_lease_json)
+    primary_detail_lease = json.loads(primary_detail_lease_resp.text)
 
     if ip in keyed_secondary_reservations:
         # Obtain detail about reservation from secondary
-        with urlopen(secondary_lease_url) as secondary_lease_socket:
-            secondary_detail_lease_json = secondary_lease_socket.read().decode("utf8")
+        secondary_detail_lease_resp = requests.get(secondary_lease_url, verify=ca_path, cert=(cert_path, key_path))
 
-        # Parse the secondary detailed lease
-        secondary_detail_lease = json.loads(secondary_detail_lease_json)
+        # Parse the detailed lease
+        secondary_detail_lease = json.loads(secondary_detail_lease_resp.text)
 
         # Continue if they are the same
         if set(primary_detail_lease.items()) == set(secondary_detail_lease.items()):
@@ -106,16 +103,11 @@ for ip, lease in keyed_primary_reservations.items():
 for ip, lease in delete_ip_on_secondary.items():
     secondary_lease_url = lease_url_template.format(dhcp_secondary_base_url, ip)
 
-    delete_request = RequestWithMethod(secondary_lease_url,
-                                       method="DELETE")
-
-    # Delete the lease
-    with urlopen(delete_request) as lease_delete_socket:
-        delete_response = lease_delete_socket.read().decode("utf8")
+    delete_response = requests.delete(secondary_lease_url, verify=ca_path, cert=(cert_path, key_path))
 
     # Notify about deletion
     print("Deleted reservation for {0} ({1}):\n".format(ip, lease["hostname"]),
-          delete_response,
+          delete_response.text,
           file=stderr)
 
 for ip, detail_lease in add_lease_on_secondary.items():
@@ -136,17 +128,19 @@ for ip, detail_lease in add_lease_on_secondary.items():
 
         post_data += "{0}={1}".format(k, v)
 
-    post_request = RequestWithMethod(secondary_lease_url,
-                                     data=post_data.encode("utf8"),
-                                     method="POST")
+#    post_request = RequestWithMethod(secondary_lease_url,
+#                                     data=post_data.encode("utf8"),
+#                                     method="POST")
 
     # Add the lease
-    with urlopen(post_request) as lease_post_socket:
-        post_response = lease_post_socket.read().decode("utf8")
+#    with urlopen(post_request) as lease_post_socket:
+#        post_response = lease_post_socket.read().decode("utf8")
+
+    post_response = requests.post(secondary_lease_url, data=post_data, verify=ca_path, cert=(cert_path, key_path))
 
     # Notify about addition
     print("Added reservation for {0} ({1}):\n".format(ip, lease["hostname"]),
-          post_response,
+          post_response.text,
           file=stderr)
 
 exit(0)
