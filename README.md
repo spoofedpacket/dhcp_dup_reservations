@@ -15,13 +15,13 @@ Modified to support HTTPS.
 
 ## Usage
 
-To sync all records for the subnet 192.172.10.0 from my-dhcp-primary.example.com to my-dhcp-secondary.example.com:
+To sync all records for the subnet **192.172.10.0** from **my-dhcp-primary.example.com** to **my-dhcp-secondary.example.com**:
 
     ./dhcp_dup_reservations.py my-dhcp-primary.example.com my-dhcp-secondary.example.com 192.172.10.0
 
-The script looks in /var/lib/puppet/ssl for the necessary certs and keys as this is the most common setup with puppet and foreman-proxy, although you can modify it to look in a different place by editing the ssl_root variable.
+The script looks in **/var/lib/puppet/ssl** for the necessary certs and keys as this is the most common setup with puppet and foreman-proxy, although you can modify it to look in a different place by editing the **ssl_root** variable.
 
-To sync all records for all subnets known to your foreman-proxy, you could call the script in a loop, using curl and jq to parse the JSON (this would be useful as a cron job, for example):
+To sync all records for all subnets known to your foreman-proxy, you could call the script in a loop, using curl and [jq](https://stedolan.github.io/jq/) to parse the JSON (this would be useful as a cron job, for example):
 
     PRIMARY=`hostname -f`
     SECONDARY="my-dhcp-secondary.example.com"
