@@ -33,9 +33,10 @@ dhcp_secondary = argv[2]
 subnet         = argv[3]
 
 # SSL paths
-ca_path   = "/var/lib/puppet/ssl/certs/ca.pem"
-cert_path = "/var/lib/puppet/ssl/certs/" + dhcp_primary + ".pem"
-key_path  = "/var/lib/puppet/ssl/private_keys/" + dhcp_primary + ".pem"
+ssl_root  = "/var/lib/puppet/ssl/"
+ca_path   = ssl_root + "certs/ca.pem"
+cert_path = ssl_root + "certs/" + dhcp_primary + ".pem"
+key_path  = ssl_root + "private_keys/" + dhcp_primary + ".pem"
 
 # Get the base urls
 dhcp_primary_base_url   = base_url_template.format(protocol, dhcp_primary,   subnet)
