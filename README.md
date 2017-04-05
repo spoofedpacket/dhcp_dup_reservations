@@ -30,7 +30,6 @@ To sync all records for all subnets known to your foreman-proxy, you could call 
     for RANGE in `curl -s --cacert ${SSL_ROOT}/certs/ca.pem \
                --cert ${SSL_ROOT}/certs/${PRIMARY}.pem \
                --key ${SSL_ROOT}/private_keys/${PRIMARY}.pem \
-               https://${PRIMARY}:8443/dhcp | jq --monochrome-output \
-               --raw-output '.[].network'`; do
+               https://${PRIMARY}:8443/dhcp | jq --monochrome-output --raw-output '.[].network'`; do
                dhcp_dup_reservations.py $PRIMARY $SECONDARY $RANGE
     done
