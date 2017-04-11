@@ -109,6 +109,11 @@ for ip, detail_lease in add_lease_on_secondary.items():
     # This does not belong
     del detail_lease["subnet"]
 
+    # Remove nextServer. Leave it up to the remote smart proxy and/or DHCP server to set this.
+    # This was added due to the remote smart proxy adding double quotes around the next-server
+    # value (which was in hex) leading to incorrect values for next-server being offered to the client.
+    del detail_lease["nextServer"]
+
     # This does belong
     detail_lease["name"] = detail_lease["hostname"]
 
